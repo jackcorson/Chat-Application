@@ -3,8 +3,8 @@ import java.util.*;
 import java.io.*;
 
 public class Server {
-    private ServerSocket            server;
-    private Socket                  socket;
+    private ServerSocket           server;
+    private Socket                 socket;
     private ArrayList<HandleClient> clients = new ArrayList<HandleClient>();
     
     public Server(int portNum) {
@@ -31,9 +31,10 @@ public class Server {
     }
 
     class HandleClient extends Thread {
-        private Socket           socket;
-        private DataInputStream  input;
-        private DataOutputStream output;
+        private Socket                socket;
+        private DataInputStream       input;
+        private DataOutputStream      output;
+        private String                name;
     
         public HandleClient(Socket socket) {
             try {
@@ -49,9 +50,13 @@ public class Server {
         public void run() {
             String msgReceived = "";
             try {
+                output.writeUTF("What is your name?");
+                name = input.readUTF();
+                this.output.writeUTF("Begin chatting whenever you like!");
                 while (true) {
                     msgReceived = input.readUTF();
-                    System.out.println("Client " + socket.getRemoteSocketAddress() + ": " + msgReceived);
+                    this.output.writeUTF("(...Sent!)");
+                    System.out.println("Client " + socket.getRemoteSocketAddress() + " (" + name + "): " + msgReceived);
                     if (msgReceived.equalsIgnoreCase("Bye")) {
                         this.output.writeUTF("Would you like to talk to someone else? (yes/no)");
                         String decision = input.readUTF().toString();
@@ -63,7 +68,7 @@ public class Server {
                     else {
                         for (HandleClient client : clients) {
                             if (client != this) {
-                                client.output.writeUTF("From " + socket.getRemoteSocketAddress().toString() + ": " + msgReceived);
+                                client.output.writeUTF("From " + name + ": " + msgReceived);
                                 client.output.flush();
                             }
                         }
@@ -77,7 +82,8 @@ public class Server {
             catch (IOException e) {
                 System.out.println(socket.getRemoteSocketAddress().toString()+" has exited the conversation.");
             }
-            clients.remove(this);
+            clients.remove(name);
         }
+
     }
 }
