@@ -3,8 +3,8 @@ import java.util.*;
 import java.io.*;
 
 public class Server {
-    private ServerSocket           server;
-    private Socket                 socket;
+    private ServerSocket            server;
+    private Socket                  socket;
     private ArrayList<HandleClient> clients = new ArrayList<HandleClient>();
     
     public Server(int portNum) {
