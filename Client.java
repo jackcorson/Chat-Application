@@ -18,20 +18,26 @@ public class Client extends Thread {
             output = new DataOutputStream(socket.getOutputStream());
         }
         catch(Exception e) {
-            System.out.println(e);
+            System.out.println("a"+e);
         }
 
         String msg = "";
         new Thread(new IncomingMessages()).start();
 
-        while (!msg.equals("Bye")) {
-            try {
+        while (true) {
+            try {    
                 msg = input.readLine();
                 output.writeUTF(msg);
+                if (msg.equalsIgnoreCase("bye")) {
+                    String response = input.readLine();
+                    if (response.equalsIgnoreCase("no")) {
+                        break;
+                    }
+                    output.writeUTF(response);
+                }
             }
-            catch (Exception e) {
-                System.out.println(e);
-            }
+            catch (Exception e) {System.out.println(e);}
+
         }
 
         try {
@@ -40,7 +46,7 @@ public class Client extends Thread {
             output.close();
         }
         catch (Exception e) {
-            System.out.println(e);
+            System.out.println("d"+e);
         }
 
     }

@@ -14,14 +14,14 @@ public class Server {
 
             while (true) {
                 socket = server.accept();
-                System.err.println("Connected!");
+                System.err.println(socket.getRemoteSocketAddress() + " Connected!");
                 HandleClient client = new HandleClient(socket);
                 clients.add(client);
                 client.start();
             }
         }
         catch (Exception e) {
-            System.out.println(e);
+            System.out.println("e"+e);
         }
     }
  
@@ -42,29 +42,40 @@ public class Server {
                 output = new DataOutputStream(socket.getOutputStream());
             }
             catch (Exception e) {
-                System.out.println(e);
+                System.out.println("f"+e);
             }
         }
     
         public void run() {
             String msgReceived = "";
             try {
-                while (!msgReceived.equals("Bye")) {
+                while (true) {
                     msgReceived = input.readUTF();
                     System.out.println("Client " + socket.getRemoteSocketAddress() + ": " + msgReceived);
-                    for (HandleClient client : clients) {
-                        if (client != this) {
-                            client.output.writeUTF("From " + socket.getRemoteSocketAddress().toString() + ": " + msgReceived);
-                            client.output.flush();
+                    if (msgReceived.equalsIgnoreCase("Bye")) {
+                        this.output.writeUTF("Would you like to talk to someone else? (yes/no)");
+                        String decision = input.readUTF().toString();
+                        if (!decision.equalsIgnoreCase("yes")) {
+                            break;
+                        }
+                        System.out.println("Client " + socket.getRemoteSocketAddress() + ": " + decision);
+                    }
+                    else {
+                        for (HandleClient client : clients) {
+                            if (client != this) {
+                                client.output.writeUTF("From " + socket.getRemoteSocketAddress().toString() + ": " + msgReceived);
+                                client.output.flush();
+                            }
                         }
                     }
                 }
+
                 input.close();
                 socket.close();
                 output.close();
             } 
             catch (IOException e) {
-                System.out.println(e);
+                System.out.println(socket.getRemoteSocketAddress().toString()+" has exited the conversation.");
             }
             clients.remove(this);
         }
