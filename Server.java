@@ -82,7 +82,7 @@ public class Server {
             catch (IOException e) {
                 System.out.println(socket.getRemoteSocketAddress().toString()+" has exited the conversation.");
             }
-            clients.remove(name);
+            clients.remove(this);
         }
 
     }
