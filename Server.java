@@ -18,6 +18,7 @@ public class Server {
                 HandleClient client = new HandleClient(socket);
                 clients.add(client);
                 client.start();
+                new Thread(() -> alertClients(client)).start();
             }
         }
         catch (Exception e) {
@@ -30,11 +31,25 @@ public class Server {
         Server server = new Server(5060);
     }
 
+    public void alertClients(HandleClient newClient) {
+        synchronized(clients) {
+            for (HandleClient client : clients) {
+                if (client != newClient) {
+                    try {
+                        client.output.writeUTF("a new client has joined, type 'bye' if you would like to see your new chat options!");
+                    }
+                    catch (Exception e) {System.out.println(e);}
+                }
+            }
+        }
+    }
+
     class HandleClient extends Thread {
         private Socket                socket;
         private DataInputStream       input;
-        private DataOutputStream      output;
+        public DataOutputStream       output;
         private String                name;
+        private boolean               availability = false;
     
         public HandleClient(Socket socket) {
             try {
@@ -52,6 +67,7 @@ public class Server {
             try {
                 output.writeUTF("What is your name?");
                 name = input.readUTF();
+                this.addToChat();
                 this.output.writeUTF("Begin chatting whenever you like!");
                 while (true) {
                     msgReceived = input.readUTF();
@@ -63,11 +79,16 @@ public class Server {
                         if (!decision.equalsIgnoreCase("yes")) {
                             break;
                         }
-                        System.out.println("Client " + socket.getRemoteSocketAddress() + ": " + decision);
+                        else {
+                            for (HandleClient client : clients) {
+                                client.availability = false;
+                            }
+                            this.addToChat();
+                        }
                     }
                     else {
                         for (HandleClient client : clients) {
-                            if (client != this) {
+                            if (client != this && client.availability == true) {
                                 client.output.writeUTF("From " + name + ": " + msgReceived);
                                 client.output.flush();
                             }
@@ -85,5 +106,27 @@ public class Server {
             clients.remove(this);
         }
 
+        public void addToChat() {
+            String[] list = new String[clients.size()];
+            try {
+                if (clients.size() > 1) { 
+                    this.output.writeUTF("Who would you like to talk to (list separated by commas and no spaces)? Your options include...");
+                    for (HandleClient client : clients) {
+                        if (this != client) {
+                            this.output.writeUTF(client.name);
+                        }
+                    }
+                    list = input.readUTF().split(",");
+                    for (HandleClient client : clients) {
+                        for (String person : list) {
+                            if (client.name.equalsIgnoreCase(person)) {
+                                client.availability = true;
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception e) {System.out.println(e);}
+        }
     }
 }
