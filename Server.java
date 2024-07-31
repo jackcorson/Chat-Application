@@ -16,9 +16,7 @@ public class Server {
                 socket = server.accept();
                 System.err.println(socket.getRemoteSocketAddress() + " Connected!");
                 HandleClient client = new HandleClient(socket);
-                clients.add(client);
                 client.start();
-                new Thread(() -> alertClients(client)).start();
             }
         }
         catch (Exception e) {
@@ -64,14 +62,18 @@ public class Server {
     
         public void run() {
             String msgReceived = "";
+            String [] list = new String[100];
             try {
                 output.writeUTF("What is your name?");
                 name = input.readUTF();
-                this.addToChat();
+                clients.add(this);
+                new Thread(() -> alertClients(this)).start();
+                list = this.addToChat();
                 this.output.writeUTF("Begin chatting whenever you like!");
                 while (true) {
                     msgReceived = input.readUTF();
-                    this.output.writeUTF("(...Sent!)");
+                    this.output.writeUTF("(...Sent to ->)");
+                    whoSentTo(list, this);
                     System.out.println("Client " + socket.getRemoteSocketAddress() + " (" + name + "): " + msgReceived);
                     if (msgReceived.equalsIgnoreCase("Bye")) {
                         this.output.writeUTF("Would you like to talk to someone else? (yes/no)");
@@ -83,7 +85,8 @@ public class Server {
                             for (HandleClient client : clients) {
                                 client.availability = false;
                             }
-                            this.addToChat();
+                            list = this.addToChat();
+                            this.output.writeUTF("Begin chatting!");
                         }
                     }
                     else {
@@ -95,7 +98,6 @@ public class Server {
                         }
                     }
                 }
-
                 input.close();
                 socket.close();
                 output.close();
@@ -106,7 +108,7 @@ public class Server {
             clients.remove(this);
         }
 
-        public void addToChat() {
+        public String[] addToChat() {
             String[] list = new String[clients.size()];
             try {
                 if (clients.size() > 1) { 
@@ -127,6 +129,29 @@ public class Server {
                 }
             }
             catch (Exception e) {System.out.println(e);}
+
+            return list;
+        }
+
+        public static void whoSentTo(String[] sendList, HandleClient client) {
+            StringBuilder newString = new StringBuilder();
+            if (sendList.length > 0 && sendList[0] != null) {
+                for (String person : sendList) {
+                    if (client.name != person && person != null) {
+                        newString.append(person).append(" ");
+                    }
+                }
+                try {
+                    client.output.writeUTF(newString.toString());
+                }
+                catch (Exception e) {System.out.println(e);}
+            }
+            else {
+                try {
+                    client.output.writeUTF("Sent to server only");
+                }
+                catch (Exception e) {System.out.println(e);}
+            }
         }
     }
 }
