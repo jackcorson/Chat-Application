@@ -3,9 +3,9 @@ import java.net.*;
  
 public class Client extends Thread {
     
-    private Socket socket;
-    private BufferedReader input;
-    private DataInputStream inputFromServer;
+    private Socket           socket;
+    private BufferedReader   input;
+    private DataInputStream  inputFromServer;
     private DataOutputStream output;
     
     public Client(String address, int portNum) {
@@ -18,7 +18,7 @@ public class Client extends Thread {
             output = new DataOutputStream(socket.getOutputStream());
         }
         catch(Exception e) {
-            System.out.println("a"+e);
+            System.out.println(e);
         }
 
         String msg = "";
@@ -45,7 +45,7 @@ public class Client extends Thread {
             output.close();
         }
         catch (Exception e) {
-            System.out.println("d"+e);
+            System.out.println(e);
         }
     }
 
@@ -63,7 +63,7 @@ public class Client extends Thread {
                     System.out.println(msgFromServer);
                 }
             } catch (IOException e) {
-                System.out.println("Error reading from server: " + e.getMessage());
+                System.out.println("\nYou have exited the chat application");
             }
         }
     }

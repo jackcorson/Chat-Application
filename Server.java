@@ -20,7 +20,7 @@ public class Server {
             }
         }
         catch (Exception e) {
-            System.out.println("e"+e);
+            System.out.println(e);
         }
     }
  
@@ -48,6 +48,10 @@ public class Server {
         public DataOutputStream       output;
         private String                name;
         private boolean               availability = false;
+        public static final String    RESET = "\u001B[0m";
+        private static final String   GREEN = "\u001B[32m";
+        public static final String    BLUE = "\u001B[34m";
+        
     
         public HandleClient(Socket socket) {
             try {
@@ -56,7 +60,7 @@ public class Server {
                 output = new DataOutputStream(socket.getOutputStream());
             }
             catch (Exception e) {
-                System.out.println("f"+e);
+                System.out.println(e);
             }
         }
     
@@ -66,14 +70,17 @@ public class Server {
             try {
                 output.writeUTF("What is your name?");
                 name = input.readUTF();
-                clients.add(this);
+                synchronized(clients) {
+                    clients.add(this);
+                }
                 new Thread(() -> alertClients(this)).start();
-                list = this.addToChat();
-                this.output.writeUTF("Begin chatting whenever you like!");
+                list = this.addToChat(true);
+                this.output.writeUTF("Begin chatting whenever you like! (type 'bye' to view chat options)");
                 while (true) {
                     msgReceived = input.readUTF();
-                    this.output.writeUTF("(...Sent to ->)");
-                    whoSentTo(list, this);
+                    if (!msgReceived.equalsIgnoreCase("Bye"))
+                        whoSentTo(list, this);
+
                     System.out.println("Client " + socket.getRemoteSocketAddress() + " (" + name + "): " + msgReceived);
                     if (msgReceived.equalsIgnoreCase("Bye")) {
                         this.output.writeUTF("Would you like to talk to someone else? (yes/no)");
@@ -82,18 +89,24 @@ public class Server {
                             break;
                         }
                         else {
-                            for (HandleClient client : clients) {
-                                client.availability = false;
+                            synchronized (clients) {
+                                for (HandleClient client : clients) {
+                                    if (client != this) {
+                                        client.availability = false;
+                                    }
+                                }
                             }
-                            list = this.addToChat();
+                            list = this.addToChat(false); //PROBLEM HERE NOT UPDATING THE TRUE VALUE WHEN FIRST TWO USERS ADDED
                             this.output.writeUTF("Begin chatting!");
                         }
                     }
                     else {
-                        for (HandleClient client : clients) {
-                            if (client != this && client.availability == true) {
-                                client.output.writeUTF("From " + name + ": " + msgReceived);
-                                client.output.flush();
+                        synchronized (clients) {
+                            for (HandleClient client : clients) {
+                                if (client != this && client.availability == true) { //PROBLEM HERE NOT UPDATING THE TRUE VALUE WHEN FIRST TWO USERS ADDED
+                                    client.output.writeUTF(BLUE + "From " + name + ": " + msgReceived + RESET);
+                                    client.output.flush();
+                                }
                             }
                         }
                     }
@@ -103,12 +116,12 @@ public class Server {
                 output.close();
             } 
             catch (IOException e) {
-                System.out.println(socket.getRemoteSocketAddress().toString()+" has exited the conversation.");
+                System.out.println(socket.getRemoteSocketAddress().toString() + " has exited the conversation.");
             }
             clients.remove(this);
         }
 
-        public String[] addToChat() {
+        public String[] addToChat(boolean userCreatingName) {
             String[] list = new String[clients.size()];
             try {
                 if (clients.size() > 1) { 
@@ -119,13 +132,18 @@ public class Server {
                         }
                     }
                     list = input.readUTF().split(",");
-                    for (HandleClient client : clients) {
-                        for (String person : list) {
-                            if (client.name.equalsIgnoreCase(person)) {
-                                client.availability = true;
+                    synchronized (clients) {
+                        for (HandleClient client : clients) {
+                            for (String person : list) {
+                                if (client.name.equalsIgnoreCase(person)) {
+                                    client.availability = true;
+                                }
                             }
                         }
                     }
+                }
+                else if (userCreatingName == false) {
+                    this.output.writeUTF("There is nobody to talk to at this time :(");
                 }
             }
             catch (Exception e) {System.out.println(e);}
@@ -134,21 +152,21 @@ public class Server {
         }
 
         public static void whoSentTo(String[] sendList, HandleClient client) {
-            StringBuilder newString = new StringBuilder();
+            StringBuilder newString = new StringBuilder("Sent to --> ");
             if (sendList.length > 0 && sendList[0] != null) {
                 for (String person : sendList) {
                     if (client.name != person && person != null) {
-                        newString.append(person).append(" ");
+                        newString.append(person).append(", ");
                     }
                 }
                 try {
-                    client.output.writeUTF(newString.toString());
+                    client.output.writeUTF(GREEN + newString.substring(0, newString.length() - 2).toString() + RESET);
                 }
                 catch (Exception e) {System.out.println(e);}
             }
             else {
                 try {
-                    client.output.writeUTF("Sent to server only");
+                    client.output.writeUTF(GREEN + "Sent to server only" + RESET);
                 }
                 catch (Exception e) {System.out.println(e);}
             }
