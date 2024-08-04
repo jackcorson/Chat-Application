@@ -89,26 +89,11 @@ public class Server {
                             break;
                         }
                         else {
-                            synchronized (clients) {
-                                for (HandleClient client : clients) {
-                                    if (client != this) {
-                                        client.availability = false;
-                                    }
-                                }
-                            }
-                            list = this.addToChat(false); //PROBLEM HERE NOT UPDATING THE TRUE VALUE WHEN FIRST TWO USERS ADDED
-                            this.output.writeUTF("Begin chatting!");
+                            list = talkToSomeoneElse(list);
                         }
                     }
                     else {
-                        synchronized (clients) {
-                            for (HandleClient client : clients) {
-                                if (client != this && client.availability == true) { //PROBLEM HERE NOT UPDATING THE TRUE VALUE WHEN FIRST TWO USERS ADDED
-                                    client.output.writeUTF(BLUE + "From " + name + ": " + msgReceived + RESET);
-                                    client.output.flush();
-                                }
-                            }
-                        }
+                        sendToClients(msgReceived);
                     }
                 }
                 input.close();
@@ -121,26 +106,70 @@ public class Server {
             clients.remove(this);
         }
 
+        public String[] talkToSomeoneElse(String[] list) {
+            try {
+                synchronized (clients) {
+                    for (HandleClient client : clients) {
+                        if (client != this) {
+                            client.availability = false;
+                        }
+                    }
+                }
+                list = this.addToChat(false);
+                this.output.writeUTF("Begin chatting!");
+            }
+            catch (Exception e) {System.out.println(e);}
+
+            return list;
+        }
+
+        public void sendToClients(String msgReceived) {
+            try {
+                synchronized (clients) {
+                    for (HandleClient client : clients) {
+                        if (client != this && client.availability == true) { 
+                            client.output.writeUTF(BLUE + "From " + name + ": " + msgReceived + RESET);
+                            client.output.flush();
+                        }
+                    }
+                }
+            }
+            catch (Exception e) {System.out.println(e);}
+        }
+
         public String[] addToChat(boolean userCreatingName) {
             String[] list = new String[clients.size()];
             try {
                 if (clients.size() > 1) { 
-                    this.output.writeUTF("Who would you like to talk to (list separated by commas and no spaces)? Your options include...");
+                    this.output.writeUTF("Who would you like to talk to (list separated by commas)? Your options include...");
                     for (HandleClient client : clients) {
                         if (this != client) {
                             this.output.writeUTF(client.name);
                         }
                     }
-                    list = input.readUTF().split(",");
-                    synchronized (clients) {
-                        for (HandleClient client : clients) {
-                            for (String person : list) {
-                                if (client.name.equalsIgnoreCase(person)) {
-                                    client.availability = true;
+                    boolean cont = true;
+                    do {
+                        list = input.readUTF().split(",");
+                        synchronized (clients) {
+                            for (HandleClient client : clients) {
+                                int count = 0;
+                                for (String person : list) {
+                                    if (client.name.equalsIgnoreCase(person.replaceAll("\\s", ""))) {
+                                        count++;
+                                        client.availability = true;
+                                    }
+                                }
+                                if (count == 0 && client != this) {
+                                    this.output.writeUTF("A name you typed was not found, try again.");
+                                    cont = false;
+                                    break;
+                                }
+                                else {
+                                    cont = true;
                                 }
                             }
                         }
-                    }
+                    } while (cont == false);
                 }
                 else if (userCreatingName == false) {
                     this.output.writeUTF("There is nobody to talk to at this time :(");
@@ -156,7 +185,7 @@ public class Server {
             if (sendList.length > 0 && sendList[0] != null) {
                 for (String person : sendList) {
                     if (client.name != person && person != null) {
-                        newString.append(person).append(", ");
+                        newString.append(person.replaceAll("\\s", "")).append(", ");
                     }
                 }
                 try {
