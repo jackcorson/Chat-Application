@@ -1,5 +1,6 @@
 import java.io.*;
 import java.net.*;
+import javax.crypto.SecretKey;
  
 public class Client extends Thread {
     
@@ -7,6 +8,13 @@ public class Client extends Thread {
     private BufferedReader   input;
     private DataInputStream  inputFromServer;
     private DataOutputStream output;
+    SecretKey secretKey;
+    String msgFromServer;
+    public static final String    RED = "\u001B[31m";
+    public static final String    BLUE = "\u001B[34m";
+    public static final String    RESET = "\u001B[0m";
+    Encryptor en;
+
     
     public Client(String address, int portNum) {
         try {
@@ -16,6 +24,8 @@ public class Client extends Thread {
             input = new BufferedReader(new InputStreamReader(System.in));
             inputFromServer = new DataInputStream(new BufferedInputStream(socket.getInputStream()));
             output = new DataOutputStream(socket.getOutputStream());
+            en = new Encryptor();
+            secretKey = en.generateKey();
         }
         catch(Exception e) {
             System.out.println(e);
@@ -23,17 +33,26 @@ public class Client extends Thread {
 
         String msg = "";
         new Thread(new IncomingMessages()).start();
+        Encryptor en = new Encryptor();
 
         while (true) {
             try {    
                 msg = input.readLine();
-                output.writeUTF(msg);
                 if (msg.equalsIgnoreCase("bye")) {
                     String response = input.readLine();
                     if (response.equalsIgnoreCase("no")) {
                         break;
                     }
                     output.writeUTF(response);
+                }
+                else {
+                    if (!msgFromServer.contains(RED)) {
+                        String encrypted = en.encrypt(msg, secretKey);
+                        output.writeUTF(encrypted);
+                    }
+                    else {
+                        output.writeUTF(msg);
+                    }
                 }
             }
             catch (Exception e) {System.out.println(e);}
@@ -61,10 +80,30 @@ public class Client extends Thread {
     private class IncomingMessages implements Runnable {
         @Override
         public void run() {
-            String msgFromServer;
             try {
                 while ((msgFromServer = inputFromServer.readUTF()) != null) {
-                    System.out.println(msgFromServer);
+                    if (msgFromServer.contains(BLUE)) {
+                        StringBuilder msg = new StringBuilder("");
+                        String[] words = msgFromServer.split("\\s+");
+                        int count = 0;
+                        for (String word : words) {
+                            if (count != 0) {
+                                msg.append(" ");
+                            }
+                            if (!word.contains(BLUE)) {
+                                msg.append(word);
+                            }
+                            count++;
+                        }
+                        try {
+                            String decryptedMessage = en.decrypt(msg.toString(), secretKey);
+                            System.out.println(decryptedMessage);
+                        }
+                        catch (Exception e) {System.out.println(e);}
+                    }
+                    else {
+                        System.out.println(msgFromServer);
+                    }
                 }
             } catch (IOException e) {
                 System.out.println("\nYou have exited the chat application");

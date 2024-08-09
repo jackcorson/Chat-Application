@@ -1,71 +1,34 @@
-import java.util.*;
+import javax.crypto.Cipher;
+import javax.crypto.KeyGenerator;
+import javax.crypto.SecretKey;
+import java.util.Base64;
+import javax.crypto.spec.SecretKeySpec;
+
+
 
 public class Encryptor {
-    private String               message;
-    private ArrayList<Character> list;
-    private ArrayList<Character> shuffledPublicList;
-    private ArrayList<Character> shuffledPrivateList;
-    private char[]               charArray;
 
-    public Encryptor(String message) {
-        list = new ArrayList<>();
-        shuffledPublicList = new ArrayList<>();
-        shuffledPrivateList = new ArrayList<>();
-        generateKey();
+    public Encryptor() {
     }
 
-    public String encrypt(String message, String publicKey) {
-        this.message = message;
-        charArray = this.message.toCharArray();
-        char[] pubToChar = publicKey.toCharArray();
-        ArrayList<Character> clientPublicKey = new ArrayList<>();
-        for (char letter : pubToChar) {
-            clientPublicKey.add(letter);
-        }
-        
-        this.message = message;
-        for (int i = 0; i < charArray.length; i++) {
-            for (int j = 0; j < list.size(); j++) {
-                if (charArray[i] == list.get(j)) {
-                    charArray[i] = clientPublicKey.get(j);
-                    break;
-                }
-            }
-        }
-        return charArray.toString();
+    public SecretKey generateKey() throws Exception {
+        KeyGenerator keyGen = KeyGenerator.getInstance("Blowfish");
+        keyGen.init(128); 
+        return keyGen.generateKey();
     }
 
-    public String decrypt(String msg) {
-        char[] chararr = msg.toCharArray();
-        for (int i = 0; i < chararr.length; i++) {
-            for (int j = 0; j < shuffledPrivateList.size(); j++) {
-                if (chararr[i] == shuffledPrivateList.get(j)) {
-                    chararr[i] = list.get(j);
-                    break;
-                }
-            }
-        }
-
-        return chararr.toString();
+    public String encrypt(String data, SecretKey secretKey) throws Exception {
+        Cipher cipher = Cipher.getInstance("Blowfish");
+        cipher.init(Cipher.ENCRYPT_MODE, secretKey);
+        byte[] encryptedData = cipher.doFinal(data.getBytes("UTF-8"));
+        return Base64.getEncoder().encodeToString(encryptedData);
     }
 
-    private void generateKey() {
-        for (int i = 0; i < 127; i++) {
-            list.add((char) i);
-        }
-
-        shuffledPublicList = new ArrayList<>(list);
-        Collections.shuffle(shuffledPublicList);
-        shuffledPrivateList = new ArrayList<>(shuffledPublicList);
-        Collections.shuffle(shuffledPrivateList);
-    }
-
-    public ArrayList<Character> getPublicKey() {
-        return shuffledPublicList;
-    }
-
-    private ArrayList<Character> getPrivateKey() {
-        return shuffledPrivateList;
+    public String decrypt(String encryptedData, SecretKey secretKey) throws Exception {
+        Cipher cipher = Cipher.getInstance("Blowfish");
+        cipher.init(Cipher.DECRYPT_MODE, secretKey);
+        byte[] decryptedData = cipher.doFinal(Base64.getDecoder().decode(encryptedData));
+        return new String(decryptedData, "UTF-8");
     }
 
 }

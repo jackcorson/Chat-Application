@@ -6,6 +6,8 @@ public class Server {
     private ServerSocket            server;
     private Socket                  socket;
     private ArrayList<HandleClient> clients = new ArrayList<HandleClient>();
+    public static final String    RED = "\u001B[31m";
+    public static final String    RESET = "\u001B[0m";
     
     public Server(int portNum) {
         try {
@@ -51,6 +53,7 @@ public class Server {
         public static final String    RESET = "\u001B[0m";
         private static final String   GREEN = "\u001B[32m";
         public static final String    BLUE = "\u001B[34m";
+
         
     
         public HandleClient(Socket socket) {
@@ -68,7 +71,7 @@ public class Server {
             String msgReceived = "";
             String [] list = new String[100];
             try {
-                output.writeUTF("What is your name?");
+                output.writeUTF(RED + "What is your name?" + RESET);
                 name = input.readUTF();
                 synchronized(clients) {
                     clients.add(this);
@@ -78,12 +81,13 @@ public class Server {
                 this.output.writeUTF("Begin chatting whenever you like! (type 'bye' to view chat options)");
                 while (true) {
                     msgReceived = input.readUTF();
+
                     if (!msgReceived.equalsIgnoreCase("Bye"))
                         whoSentTo(list, this);
-
+                        
                     System.out.println("Client " + socket.getRemoteSocketAddress() + " (" + name + "): " + msgReceived);
                     if (msgReceived.equalsIgnoreCase("Bye")) {
-                        this.output.writeUTF("Would you like to talk to someone else? (yes/no)");
+                        this.output.writeUTF(RED + "Would you like to talk to someone else? (yes/no)" + RESET);
                         String decision = input.readUTF().toString();
                         if (!decision.equalsIgnoreCase("yes")) {
                             break;
@@ -128,7 +132,7 @@ public class Server {
                 synchronized (clients) {
                     for (HandleClient client : clients) {
                         if (client != this && client.availability == true) { 
-                            client.output.writeUTF(BLUE + "From " + name + ": " + msgReceived + RESET);
+                            client.output.writeUTF(BLUE + "From " + name + ": " + RESET + msgReceived);
                             client.output.flush();
                         }
                     }
@@ -141,10 +145,10 @@ public class Server {
             String[] list = new String[clients.size()];
             try {
                 if (clients.size() > 1) { 
-                    this.output.writeUTF("Who would you like to talk to (list separated by commas)? Your options include...");
+                    this.output.writeUTF(RED + "Who would you like to talk to (list separated by commas)? Your options include..." + RESET);
                     for (HandleClient client : clients) {
                         if (this != client) {
-                            this.output.writeUTF(client.name);
+                            this.output.writeUTF(RED + client.name + RESET);
                         }
                     }
                     boolean cont = true;
@@ -160,7 +164,7 @@ public class Server {
                                     }
                                 }
                                 if (count == 0 && client != this) {
-                                    this.output.writeUTF("A name you typed was not found, try again.");
+                                    this.output.writeUTF(RED + "A name you typed was not found, try again." + RESET);
                                     cont = false;
                                     break;
                                 }
