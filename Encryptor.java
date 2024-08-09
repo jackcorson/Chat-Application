@@ -7,7 +7,7 @@ public class Encryptor {
     private ArrayList<Character> shuffledPrivateList;
     private char[]               charArray;
 
-    public Encryptor() {
+    public Encryptor(String message) {
         list = new ArrayList<>();
         shuffledPublicList = new ArrayList<>();
         shuffledPrivateList = new ArrayList<>();
