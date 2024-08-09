@@ -2,14 +2,10 @@ import javax.crypto.Cipher;
 import javax.crypto.KeyGenerator;
 import javax.crypto.SecretKey;
 import java.util.Base64;
-import javax.crypto.spec.SecretKeySpec;
-
-
 
 public class Encryptor {
 
-    public Encryptor() {
-    }
+    public Encryptor() {}
 
     public SecretKey generateKey() throws Exception {
         KeyGenerator keyGen = KeyGenerator.getInstance("Blowfish");
