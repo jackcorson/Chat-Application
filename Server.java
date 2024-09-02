@@ -1,4 +1,7 @@
 import java.net.*;
+import java.security.KeyFactory;
+import java.security.PublicKey;
+import java.security.spec.X509EncodedKeySpec;
 import java.util.*;
 import java.io.*;
 
@@ -6,8 +9,7 @@ public class Server {
     private ServerSocket            server;
     private Socket                  socket;
     private ArrayList<HandleClient> clients = new ArrayList<HandleClient>();
-    public static final String    RED = "\u001B[31m";
-    public static final String    RESET = "\u001B[0m";
+    private HashMap<String, String> pubKeyCollection = new HashMap<>();
     
     public Server(int portNum) {
         try {
@@ -36,7 +38,7 @@ public class Server {
             for (HandleClient client : clients) {
                 if (client != newClient) {
                     try {
-                        client.output.writeUTF("a new client has joined, type 'bye' if you would like to see your new chat options!");
+                        client.output.writeUTF(socket.getRemoteSocketAddress().toString() + " " + pubKeyCollection.get(socket.getRemoteSocketAddress().toString()) + " a new client has joined, type 'bye' if you would like to see your new chat options!");
                     }
                     catch (Exception e) {System.out.println(e);}
                 }
@@ -54,7 +56,6 @@ public class Server {
         private static final String   GREEN = "\u001B[32m";
         public static final String    BLUE = "\u001B[34m";
 
-        
     
         public HandleClient(Socket socket) {
             try {
@@ -70,24 +71,28 @@ public class Server {
         public void run() {
             String msgReceived = "";
             String [] list = new String[100];
-            try {
-                output.writeUTF(RED + "What is your name?" + RESET);
+            try {        
+                list = this.addToChat(true);
+                output.writeUTF("Gathering public key...");
+                String pubKey = input.readUTF();
+                pubKeyCollection.put(socket.getRemoteSocketAddress().toString(), pubKey);
+                output.writeUTF("What is your name?");
                 name = input.readUTF();
+                System.out.println(pubKey);
+                System.out.println(name);
                 synchronized(clients) {
                     clients.add(this);
                 }
                 new Thread(() -> alertClients(this)).start();
-                list = this.addToChat(true);
-                this.output.writeUTF("Begin chatting whenever you like! (type 'bye' to view chat options)");
+                this.output.writeUTF("Begin chatting whenever you like! (type 'bye' to view chat options)");   
                 while (true) {
                     msgReceived = input.readUTF();
-
                     if (!msgReceived.equalsIgnoreCase("Bye"))
                         whoSentTo(list, this);
-                        
+
                     System.out.println("Client " + socket.getRemoteSocketAddress() + " (" + name + "): " + msgReceived);
                     if (msgReceived.equalsIgnoreCase("Bye")) {
-                        this.output.writeUTF(RED + "Would you like to talk to someone else? (yes/no)" + RESET);
+                        this.output.writeUTF("Would you like to talk to someone else? (yes/no)");
                         String decision = input.readUTF().toString();
                         if (!decision.equalsIgnoreCase("yes")) {
                             break;
@@ -106,6 +111,8 @@ public class Server {
             } 
             catch (IOException e) {
                 System.out.println(socket.getRemoteSocketAddress().toString() + " has exited the conversation.");
+            } catch (Exception e) {
+                e.printStackTrace();
             }
             clients.remove(this);
         }
@@ -145,10 +152,10 @@ public class Server {
             String[] list = new String[clients.size()];
             try {
                 if (clients.size() > 1) { 
-                    this.output.writeUTF(RED + "Who would you like to talk to (list separated by commas)? Your options include..." + RESET);
+                    this.output.writeUTF("Who would you like to talk to (list separated by commas)? Your options include...");
                     for (HandleClient client : clients) {
                         if (this != client) {
-                            this.output.writeUTF(RED + client.name + RESET);
+                            this.output.writeUTF(client.name);
                         }
                     }
                     boolean cont = true;
@@ -164,7 +171,7 @@ public class Server {
                                     }
                                 }
                                 if (count == 0 && client != this) {
-                                    this.output.writeUTF(RED + "A name you typed was not found, try again." + RESET);
+                                    this.output.writeUTF("A name you typed was not found, try again.");
                                     cont = false;
                                     break;
                                 }

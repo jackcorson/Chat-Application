@@ -1,6 +1,10 @@
 import java.io.*;
 import java.net.*;
-import javax.crypto.SecretKey;
+import java.security.KeyFactory;
+import java.security.PublicKey;
+import java.security.spec.X509EncodedKeySpec;
+import java.util.Base64;
+import java.util.HashMap;
  
 public class Client extends Thread {
     
@@ -8,13 +12,10 @@ public class Client extends Thread {
     private BufferedReader   input;
     private DataInputStream  inputFromServer;
     private DataOutputStream output;
-    SecretKey secretKey;
-    String msgFromServer;
-    public static final String    RED = "\u001B[31m";
+    private PublicKey        publicKey;
+    private HashMap<String, PublicKey> pubKeyCollection = new HashMap<>();
     public static final String    BLUE = "\u001B[34m";
-    public static final String    RESET = "\u001B[0m";
-    Encryptor en;
-
+    Encryptor rsa;
     
     public Client(String address, int portNum) {
         try {
@@ -24,8 +25,6 @@ public class Client extends Thread {
             input = new BufferedReader(new InputStreamReader(System.in));
             inputFromServer = new DataInputStream(new BufferedInputStream(socket.getInputStream()));
             output = new DataOutputStream(socket.getOutputStream());
-            en = new Encryptor();
-            secretKey = en.generateKey();
         }
         catch(Exception e) {
             System.out.println(e);
@@ -33,31 +32,41 @@ public class Client extends Thread {
 
         String msg = "";
         new Thread(new IncomingMessages()).start();
-        Encryptor en = new Encryptor();
-
-        while (true) {
-            try {    
-                msg = input.readLine();
-                if (msg.equalsIgnoreCase("bye")) {
-                    String response = input.readLine();
-                    if (response.equalsIgnoreCase("no")) {
-                        break;
-                    }
-                    output.writeUTF(response);
-                }
-                else {
-                    if (!msgFromServer.contains(RED)) {
-                        String encrypted = en.encrypt(msg, secretKey);
-                        output.writeUTF(encrypted);
+        try {
+            rsa = new Encryptor();
+            publicKey = rsa.getPublicKey();
+            String encodedKey = Base64.getEncoder().encodeToString(publicKey.getEncoded());
+            output.writeUTF(encodedKey);
+            msg = input.readLine();
+            output.writeUTF(msg);
+            while (true) {
+                try {    
+                    msg = input.readLine();
+                    if (msg.equalsIgnoreCase("bye")) {
+                        output.writeUTF(msg);
+                        String response = input.readLine();
+                        if (response.equalsIgnoreCase("no")) {
+                            break;
+                        }
+                        output.writeUTF(response);
                     }
                     else {
-                        output.writeUTF(msg);
+                        if (pubKeyCollection.size() > 0) {
+                            for (HashMap.Entry<String, PublicKey> entry : pubKeyCollection.entrySet()) {
+                                output.writeUTF(rsa.encrypt(msg, entry.getValue()));
+                            }
+                        }
+                        else {
+                            output.writeUTF(rsa.encrypt(msg, publicKey));
+                        }
                     }
                 }
-            }
-            catch (Exception e) {System.out.println(e);}
+                catch (Exception e) {System.out.println(e);}
 
+            }
         }
+        catch (Exception e) {System.out.println(e);}
+
         try {
             socket.close();
             input.close();
@@ -80,26 +89,27 @@ public class Client extends Thread {
     private class IncomingMessages implements Runnable {
         @Override
         public void run() {
+            String msgFromServer;
             try {
                 while ((msgFromServer = inputFromServer.readUTF()) != null) {
-                    if (msgFromServer.contains(BLUE)) {
-                        StringBuilder msg = new StringBuilder("");
+                    if (msgFromServer.contains("a new client has joined, type 'bye' if you would like to see your new chat options!")) {
+                        System.out.println(msgFromServer);
                         String[] words = msgFromServer.split("\\s+");
-                        int count = 0;
-                        for (String word : words) {
-                            if (count != 0) {
-                                msg.append(" ");
+                        pubKeyCollection.put(words[0], decodePublicKey(words[1]));
+                    }
+                    else if (msgFromServer.contains("From")){
+                        String[] words = msgFromServer.split("\\s+");
+                        String name = "";
+                        String message = "";
+                        for (int i = 0; i < words.length; i++) {
+                            if (words[i].contains(BLUE)) {
+                                name += words[i];
                             }
-                            if (!word.contains(BLUE)) {
-                                msg.append(word);
+                            else {
+                                message += words[i];
                             }
-                            count++;
                         }
-                        try {
-                            String decryptedMessage = en.decrypt(msg.toString(), secretKey);
-                            System.out.println(decryptedMessage);
-                        }
-                        catch (Exception e) {System.out.println(e);}
+                        System.out.println(name + rsa.decrypt(message));
                     }
                     else {
                         System.out.println(msgFromServer);
@@ -107,7 +117,16 @@ public class Client extends Thread {
                 }
             } catch (IOException e) {
                 System.out.println("\nYou have exited the chat application");
+            } catch (Exception e) {
+                e.printStackTrace();
             }
         }
+    }
+
+    private PublicKey decodePublicKey(String encodedKey) throws Exception {
+        byte[] decodedKey = Base64.getDecoder().decode(encodedKey);
+        X509EncodedKeySpec keySpec = new X509EncodedKeySpec(decodedKey);
+        KeyFactory keyFactory = KeyFactory.getInstance("RSA");
+        return keyFactory.generatePublic(keySpec);
     }
 }
