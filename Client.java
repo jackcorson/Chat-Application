@@ -3,8 +3,9 @@ import java.net.*;
 import java.security.KeyFactory;
 import java.security.PublicKey;
 import java.security.spec.X509EncodedKeySpec;
+import java.util.ArrayList;
 import java.util.Base64;
-import java.util.HashMap;
+import java.util.Scanner;
  
 public class Client extends Thread {
     
@@ -13,14 +14,18 @@ public class Client extends Thread {
     private DataInputStream  inputFromServer;
     private DataOutputStream output;
     private PublicKey        publicKey;
-    private HashMap<String, PublicKey> pubKeyCollection = new HashMap<>();
+    private ArrayList<String> list = new ArrayList<>();
     public static final String    BLUE = "\u001B[34m";
     Encryptor rsa;
+    File file;
+    Scanner myReader;
     
     public Client(String address, int portNum) {
         try {
             socket = new Socket(address, portNum);
             System.out.println("Connected to Server");
+            file = new File("publicKeys.txt");
+            myReader = new Scanner(file);
 
             input = new BufferedReader(new InputStreamReader(System.in));
             inputFromServer = new DataInputStream(new BufferedInputStream(socket.getInputStream()));
@@ -49,11 +54,27 @@ public class Client extends Thread {
                             break;
                         }
                         output.writeUTF(response);
+                        String whoTalkTo = input.readLine();
+                        output.writeUTF(whoTalkTo);
+                        whoTalkTo.replaceAll("\\s", "");
+                        String[] who = whoTalkTo.split(",");
+                        list.clear();
+                        for (int i = 0; i < who.length; i++) {
+                            list.add(who[i]);
+                        }
                     }
                     else {
-                        if (pubKeyCollection.size() > 0) {
-                            for (HashMap.Entry<String, PublicKey> entry : pubKeyCollection.entrySet()) {
-                                output.writeUTF(rsa.encrypt(msg, entry.getValue()));
+                        if (list.size() > 0) {
+                            while (myReader.hasNextLine()) {
+                                String[] nameAndKey = myReader.nextLine().split(" ");
+                                for (int i = 0; i < list.size(); i++) {
+                                    System.out.println("hi");
+                                    if (nameAndKey[0].equals(list.get(i))) {
+                                        System.out.println("hi");
+                                        output.writeUTF(nameAndKey[0] + " " + rsa.encrypt(msg, decodePublicKey(nameAndKey[1])));
+                                        break;
+                                    }
+                                }
                             }
                         }
                         else {
@@ -62,11 +83,9 @@ public class Client extends Thread {
                     }
                 }
                 catch (Exception e) {System.out.println(e);}
-
             }
         }
         catch (Exception e) {System.out.println(e);}
-
         try {
             socket.close();
             input.close();
@@ -94,8 +113,6 @@ public class Client extends Thread {
                 while ((msgFromServer = inputFromServer.readUTF()) != null) {
                     if (msgFromServer.contains("a new client has joined, type 'bye' if you would like to see your new chat options!")) {
                         System.out.println(msgFromServer);
-                        String[] words = msgFromServer.split("\\s+");
-                        pubKeyCollection.put(words[0], decodePublicKey(words[1]));
                     }
                     else if (msgFromServer.contains("From")){
                         String[] words = msgFromServer.split("\\s+");

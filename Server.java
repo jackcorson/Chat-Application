@@ -9,12 +9,15 @@ public class Server {
     private ServerSocket            server;
     private Socket                  socket;
     private ArrayList<HandleClient> clients = new ArrayList<HandleClient>();
-    private HashMap<String, String> pubKeyCollection = new HashMap<>();
+    private FileWriter filewrite;
+    private File file;
     
     public Server(int portNum) {
         try {
             server = new ServerSocket(portNum);
             System.out.println("Server created, waiting for a connection...");
+            file = new File("publicKeys.txt");
+            filewrite = new FileWriter(file, true);
 
             while (true) {
                 socket = server.accept();
@@ -38,7 +41,7 @@ public class Server {
             for (HandleClient client : clients) {
                 if (client != newClient) {
                     try {
-                        client.output.writeUTF(socket.getRemoteSocketAddress().toString() + " " + pubKeyCollection.get(socket.getRemoteSocketAddress().toString()) + " a new client has joined, type 'bye' if you would like to see your new chat options!");
+                        client.output.writeUTF("a new client has joined, type 'bye' if you would like to see your new chat options!");
                     }
                     catch (Exception e) {System.out.println(e);}
                 }
@@ -75,11 +78,11 @@ public class Server {
                 list = this.addToChat(true);
                 output.writeUTF("Gathering public key...");
                 String pubKey = input.readUTF();
-                pubKeyCollection.put(socket.getRemoteSocketAddress().toString(), pubKey);
                 output.writeUTF("What is your name?");
                 name = input.readUTF();
-                System.out.println(pubKey);
-                System.out.println(name);
+                synchronized (filewrite) {
+                    filewrite.write(name + " " + pubKey + "\n");
+                }
                 synchronized(clients) {
                     clients.add(this);
                 }
@@ -137,9 +140,10 @@ public class Server {
         public void sendToClients(String msgReceived) {
             try {
                 synchronized (clients) {
+                    String[] msg = msgReceived.split(" ");
                     for (HandleClient client : clients) {
-                        if (client != this && client.availability == true) { 
-                            client.output.writeUTF(BLUE + "From " + name + ": " + RESET + msgReceived);
+                        if (client != this && client.availability == true && msg[0] == client.name) { 
+                            client.output.writeUTF(BLUE + "From " + name + ": " + RESET + msg[1]);
                             client.output.flush();
                         }
                     }
