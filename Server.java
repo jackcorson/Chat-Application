@@ -9,15 +9,12 @@ public class Server {
     private ServerSocket            server;
     private Socket                  socket;
     private ArrayList<HandleClient> clients = new ArrayList<HandleClient>();
-    private FileWriter filewrite;
-    private File file;
+    private HashMap<String, String> pubKeyCollection = new HashMap<>();
     
     public Server(int portNum) {
         try {
             server = new ServerSocket(portNum);
             System.out.println("Server created, waiting for a connection...");
-            file = new File("publicKeys.txt");
-            filewrite = new FileWriter(file, true);
 
             while (true) {
                 socket = server.accept();
@@ -58,7 +55,7 @@ public class Server {
         public static final String    RESET = "\u001B[0m";
         private static final String   GREEN = "\u001B[32m";
         public static final String    BLUE = "\u001B[34m";
-
+        public static final String    RED = "\u001B[31m";
     
         public HandleClient(Socket socket) {
             try {
@@ -80,9 +77,7 @@ public class Server {
                 String pubKey = input.readUTF();
                 output.writeUTF("What is your name?");
                 name = input.readUTF();
-                synchronized (filewrite) {
-                    filewrite.write(name + " " + pubKey + "\n");
-                }
+                pubKeyCollection.put(name, pubKey);
                 synchronized(clients) {
                     clients.add(this);
                 }
@@ -140,11 +135,15 @@ public class Server {
         public void sendToClients(String msgReceived) {
             try {
                 synchronized (clients) {
-                    String[] msg = msgReceived.split(" ");
-                    for (HandleClient client : clients) {
-                        if (client != this && client.availability == true && msg[0] == client.name) { 
-                            client.output.writeUTF(BLUE + "From " + name + ": " + RESET + msg[1]);
-                            client.output.flush();
+                    String[] messages = msgReceived.split("\n");
+                    for (int i = 0; i < messages.length; i++) {
+                        String[] message = messages[i].split("\\s");
+                        for (HandleClient client : clients) {
+                            if (client.availability == true && client.name.trim().equals(message[0].trim())) { //not entering here
+                                System.out.println("IM HERE");
+                                client.output.writeUTF(BLUE + "From " + message[0] + ": " + RESET + message[1]);
+                                client.output.flush();
+                            }
                         }
                     }
                 }
@@ -156,20 +155,23 @@ public class Server {
             String[] list = new String[clients.size()];
             try {
                 if (clients.size() > 1) { 
-                    this.output.writeUTF("Who would you like to talk to (list separated by commas)? Your options include...");
+                    StringBuilder clientNames = new StringBuilder("Who would you like to talk to (list separated by commas)? Your options include...\n");
                     for (HandleClient client : clients) {
                         if (this != client) {
-                            this.output.writeUTF(client.name);
+                            clientNames.append(client.name).append("\n");
                         }
                     }
+                    this.output.writeUTF(clientNames.toString());
                     boolean cont = true;
                     do {
                         list = input.readUTF().split(",");
                         synchronized (clients) {
+                            String pubKeys = "";
                             for (HandleClient client : clients) {
                                 int count = 0;
                                 for (String person : list) {
                                     if (client.name.equalsIgnoreCase(person.replaceAll("\\s", ""))) {
+                                        pubKeys += client.name + " " + pubKeyCollection.get(client.name) + " ";
                                         count++;
                                         client.availability = true;
                                     }
@@ -181,6 +183,7 @@ public class Server {
                                 }
                                 else {
                                     cont = true;
+                                    output.writeUTF(RED + "PubKeys " + RESET + pubKeys);
                                 }
                             }
                         }
