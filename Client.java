@@ -50,7 +50,7 @@ public class Client extends Thread {
     }
 
     public static void main(String args[]) throws IllegalArgumentException {
-        Client client = new Client("127.0.0.1", 5060);
+        new Client("127.0.0.1", 5060);
     }
 
     private class IncomingMessages implements Runnable {

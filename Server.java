@@ -52,7 +52,6 @@ public class Server {
         private static final String   GREEN = "\u001B[32m";
         public static final String    BLUE = "\u001B[34m";
         
-    
         public HandleClient(Socket socket) { //Setup connection between server and client
             try {
                 this.socket = socket;
