@@ -13,7 +13,7 @@ public class Server {
             System.out.println("Server created, waiting for a connection...");
 
             while (true) {
-                socket = server.accept();
+                socket = server.accept(); //Listen for incoming clients
                 System.err.println(socket.getRemoteSocketAddress() + " Connected!");
                 HandleClient client = new HandleClient(socket);
                 client.start();
@@ -26,10 +26,10 @@ public class Server {
  
     public static void main(String args[])
     {
-        Server server = new Server(5060);
+        new Server(5060); //Arbitrarily chosen port number
     }
 
-    public void alertClients(HandleClient newClient) {
+    public void alertClients(HandleClient newClient) { //Wait for change in client listen to notify clients of a new user on server
         synchronized(clients) {
             for (HandleClient client : clients) {
                 if (client != newClient) {
@@ -53,7 +53,7 @@ public class Server {
         public static final String    BLUE = "\u001B[34m";
         
     
-        public HandleClient(Socket socket) {
+        public HandleClient(Socket socket) { //Setup connection between server and client
             try {
                 this.socket = socket;
                 input = new DataInputStream(new BufferedInputStream(socket.getInputStream()));
@@ -66,7 +66,7 @@ public class Server {
     
         public void run() {
             String msgReceived = "";
-            String [] list = new String[100];
+            String [] list = new String[100]; //100 clients maximum
             try {
                 output.writeUTF("What is your name?");
                 name = input.readUTF();
@@ -74,28 +74,36 @@ public class Server {
                     clients.add(this);
                 }
                 new Thread(() -> alertClients(this)).start();
-                list = this.addToChat(true);
                 this.output.writeUTF("Begin chatting whenever you like! (type 'bye' to view chat options)");
+                outerloop:
                 while (true) {
                     msgReceived = input.readUTF();
                     if (!msgReceived.equalsIgnoreCase("Bye"))
                         whoSentTo(list, this);
 
-                    System.out.println("Client " + socket.getRemoteSocketAddress() + " (" + name + "): " + msgReceived);
+                    System.out.println("Client " + socket.getRemoteSocketAddress() + " (" + name + "): " + "Hidden message"); //Don't show message to server
                     if (msgReceived.equalsIgnoreCase("Bye")) {
                         this.output.writeUTF("Would you like to talk to someone else? (yes/no)");
-                        String decision = input.readUTF().toString();
-                        if (!decision.equalsIgnoreCase("yes")) {
-                            break;
-                        }
-                        else {
-                            list = talkToSomeoneElse(list);
+                        boolean decisionSpelling = false;
+                        while (decisionSpelling == false) { //Ensure correct spelling
+                            String decision = input.readUTF().toString();
+                            if (decision.equalsIgnoreCase("no")) {
+                                break outerloop;
+                            }
+                            else if (decision.equalsIgnoreCase("yes")) {
+                                list = talkToSomeoneElse(list); //Allows user to talk to new people
+                                decisionSpelling = true;
+                            }
+                            else {
+                                output.writeUTF("Type 'yes' or 'no' please");
+                                decisionSpelling = false;
+                            }
                         }
                     }
                     else {
-                        sendToClients(msgReceived);
+                        sendToClients(msgReceived); //Deliver message to chosen clients
                     }
-                }
+                } //Close client connection
                 input.close();
                 socket.close();
                 output.close();
@@ -108,7 +116,7 @@ public class Server {
 
         public String[] talkToSomeoneElse(String[] list) {
             try {
-                synchronized (clients) {
+                synchronized (clients) { //Change user availabilities based on who client chose to talk to
                     for (HandleClient client : clients) {
                         if (client != this) {
                             client.availability = false;
@@ -127,7 +135,7 @@ public class Server {
             try {
                 synchronized (clients) {
                     for (HandleClient client : clients) {
-                        if (client != this && client.availability == true) { 
+                        if (client != this && client.availability == true) {  //Send available clients the message
                             client.output.writeUTF(BLUE + "From " + name + ": " + msgReceived + RESET);
                             client.output.flush();
                         }
@@ -151,15 +159,15 @@ public class Server {
                     do {
                         list = input.readUTF().split(",");
                         synchronized (clients) {
-                            for (HandleClient client : clients) {
+                            for (String person : list) {
                                 int count = 0;
-                                for (String person : list) {
+                                for (HandleClient client : clients) {
                                     if (client.name.equalsIgnoreCase(person.replaceAll("\\s", ""))) {
                                         count++;
                                         client.availability = true;
                                     }
                                 }
-                                if (count == 0 && client != this) {
+                                if (count == 0) {
                                     this.output.writeUTF("A name you typed was not found, try again.");
                                     cont = false;
                                     break;
@@ -180,7 +188,7 @@ public class Server {
             return list;
         }
 
-        public static void whoSentTo(String[] sendList, HandleClient client) {
+        public static void whoSentTo(String[] sendList, HandleClient client) { //Tell user who the message was sent to
             StringBuilder newString = new StringBuilder("Sent to --> ");
             if (sendList.length > 0 && sendList[0] != null) {
                 for (String person : sendList) {
