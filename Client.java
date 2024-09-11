@@ -86,12 +86,7 @@ public class Client extends Thread {
     }
 
     public static void main(String args[]) throws IllegalArgumentException {
-        if (args.length == 1) {
-            Client client = new Client(args[0], 5060);
-        }
-        else {
-            throw new IllegalArgumentException("Please provide one argument which is an IP Address.");
-        }
+        Client client = new Client("127.0.0.1", 5060); 
     }
 
     private class IncomingMessages implements Runnable {

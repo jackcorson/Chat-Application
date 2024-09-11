@@ -139,7 +139,9 @@ public class Server {
                     for (int i = 0; i < messages.length; i++) {
                         String[] message = messages[i].split("\\s");
                         for (HandleClient client : clients) {
-                            if (client.availability == true && client.name.trim().equals(message[0].trim())) { //not entering here
+                            System.out.println(client.availability);
+                            System.out.println(client.name + " " + message[0]);
+                            if (client.availability == true && client.name.equals(message[0])) { //not entering here
                                 System.out.println("IM HERE");
                                 client.output.writeUTF(BLUE + "From " + message[0] + ": " + RESET + message[1]);
                                 client.output.flush();
