@@ -9,7 +9,7 @@ public class Client extends Thread {
     private DataOutputStream output;
     
     public Client(String address, int portNum) {
-        try {
+        try { //Setup connection with server
             socket = new Socket(address, portNum);
             System.out.println("Connected to Server");
 
@@ -26,7 +26,7 @@ public class Client extends Thread {
 
         while (true) {
             try {    
-                msg = input.readLine();
+                msg = input.readLine(); //Wait for user input
                 output.writeUTF(msg);
                 if (msg.equalsIgnoreCase("bye")) {
                     String response = input.readLine();
@@ -39,7 +39,7 @@ public class Client extends Thread {
             catch (Exception e) {System.out.println(e);}
 
         }
-        try {
+        try { //Close connection
             socket.close();
             input.close();
             output.close();
@@ -58,7 +58,7 @@ public class Client extends Thread {
         public void run() {
             String msgFromServer;
             try {
-                while ((msgFromServer = inputFromServer.readUTF()) != null) {
+                while ((msgFromServer = inputFromServer.readUTF()) != null) { //Listen for messages coming from server
                     System.out.println(msgFromServer);
                 }
             } catch (IOException e) {
