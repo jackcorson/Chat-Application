@@ -100,7 +100,7 @@ public class Server {
                         }
                     }
                     else {
-                        sendToClients(msgReceived); //Deliver message to chosen clients
+                        sendToClients(msgReceived, list); //Deliver message to chosen clients
                     }
                 } //Close client connection
                 input.close();
@@ -130,11 +130,11 @@ public class Server {
             return list;
         }
 
-        public void sendToClients(String msgReceived) {
+        public void sendToClients(String msgReceived, String[] list) {
             try {
                 synchronized (clients) {
                     for (HandleClient client : clients) {
-                        if (client != this && client.availability == true) {  //Send available clients the message
+                        if (client != this && client.availability == true && Arrays.asList(list).contains(client.name) == true) {  //Send available clients the message
                             client.output.writeUTF(BLUE + "From " + name + ": " + msgReceived + RESET);
                             client.output.flush();
                         }
@@ -148,10 +148,12 @@ public class Server {
             String[] list = new String[clients.size()];
             try {
                 if (clients.size() > 1) { 
-                    this.output.writeUTF("Who would you like to talk to (list separated by commas)? Your options include...");
+                    this.output.writeUTF("Who do you want to talk to (list separated by commas)? Your options include...");
+                    int clientCount = 1;
                     for (HandleClient client : clients) {
                         if (this != client) {
-                            this.output.writeUTF(client.name);
+                            this.output.writeUTF(clientCount + ". " + client.name);
+                            clientCount++;
                         }
                     }
                     boolean cont = true;
